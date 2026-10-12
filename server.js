@@ -13,30 +13,30 @@ const PENALTY_MS = 40_000;
 // Карточки и значения углов переписаны с карточек из приложенного документа.
 // a, b, c используются для точной проверки корней уравнения.
 const cardTemplates = [
- {equation:'x² - 6x + 5 = 0', a:1,b:-6,c:5,displayNumber:'-2'},
- {equation:'5x² + 14x + 8 = 0',a:5,b:14,c:8,displayNumber:'1'},
- {equation:'-7x² + 3x + 4 = 0',a:-7,b:3,c:4,displayNumber:'3'},
- {equation:'x² - 4x - 12 = 0',a:1,b:-4,c:-12,displayNumber:'3'},
- {equation:'6x² + 5x - 4 = 0',a:6,b:5,c:-4,displayNumber:'4'},
- {equation:'x² + 5x - 24 = 0',a:1,b:5,c:-24,displayNumber:'0,5'},
- {equation:'-10x² - 7x + 3 = 0',a:-10,b:-7,c:3,displayNumber:'-2'},
- {equation:'x² - 8x + 16 = 0',a:1,b:-8,c:16,displayNumber:'-1'},
- {equation:'x² - 12x + 27 = 0',a:1,b:-12,c:27,displayNumber:'1,5'},
- {equation:'2x³ + 27x - 240 = 0',a:2,b:27,c:-240,displayNumber:'1,5'},
- {equation:'5x² - 17x + 6 = 0',a:5,b:-17,c:6,displayNumber:'0,5'},
- {equation:'6x² - 15x + 0 = 0',a:6,b:-15,c:0,displayNumber:'3'},
- {equation:'-10x² + 19x + 6 = 0',a:-10,b:19,c:6,displayNumber:'0,5'},
- {equation:'4x² + 24x - 13 = 0',a:4,b:24,c:-13,displayNumber:'1'},
- {equation:'-6x² - x - 1 = 0',a:-6,b:-1,c:-1,displayNumber:'-1'},
- {equation:'x² + 9x + 8 = 0',a:1,b:9,c:8,displayNumber:'0,5'},
- {equation:'4x² + 12x - 7 = 0',a:4,b:12,c:-7,displayNumber:'-1'},
- {equation:'2x² - 6x + 4 = 0',a:2,b:-6,c:4,displayNumber:'4'},
- {equation:'-25x² + 21x - 4 = 0',a:-25,b:21,c:-4,displayNumber:'-2'},
- {equation:'2x² + 7x + 6 = 0',a:2,b:7,c:6,displayNumber:'4'},
- {equation:'x² - 16x + 48 = 0',a:1,b:-16,c:48,displayNumber:'-1'},
- {equation:'2x² + 3x + 1 = 0',a:2,b:3,c:1,displayNumber:'1,5'},
- {equation:'x² + x - 20 = 0',a:1,b:1,c:-20,displayNumber:'1'},
- {equation:'14x² - 33x + 18 = 0',a:14,b:-33,c:18,displayNumber:'1'}
+ {equation:'x² - 6x + 5 = 0', a:1,b:-6,c:5,displayNumber:'1'},
+ {equation:'5x² + 14x + 8 = 0', a:5,b:14,c:8,displayNumber:'-2'},
+ {equation:'-7x² + 3x + 4 = 0', a:-7,b:3,c:4,displayNumber:'3'},
+ {equation:'x² - 4x - 12 = 0', a:1,b:-4,c:-12,displayNumber:'3'},
+ {equation:'6x² + 5x - 4 = 0', a:6,b:5,c:-4,displayNumber:'0.5'},
+ {equation:'x² + 5x - 24 = 0', a:1,b:5,c:-24,displayNumber:'-3'},
+ {equation:'-10x² - 7x + 3 = 0', a:-10,b:-7,c:3,displayNumber:'-1'},
+ {equation:'x² - 8x + 16 = 0', a:1,b:-8,c:16,displayNumber:'4'},
+ {equation:'x² - 12x + 27 = 0', a:1,b:-12,c:27,displayNumber:'1,5'},
+ {equation:'2x² - 5x + 2 = 0', a:2,b:-5,c:2,displayNumber:'2'},
+ {equation:'x² + 7x + 10 = 0', a:1,b:7,c:10,displayNumber:'-2'},
+ {equation:'3x² - 10x + 3 = 0', a:3,b:-10,c:3,displayNumber:'3'},
+ {equation:'x² - 9 = 0', a:1,b:0,c:-9,displayNumber:'-3'},
+ {equation:'4x² - 9 = 0', a:4,b:0,c:-9,displayNumber:'4'},
+ {equation:'x² + 6x + 9 = 0', a:1,b:6,c:9,displayNumber:'-3'},
+ {equation:'2x² + 3x - 2 = 0', a:2,b:3,c:-2,displayNumber:'2'},
+ {equation:'x² - x - 20 = 0', a:1,b:-1,c:-20,displayNumber:'5'},
+ {equation:'x² + 2x - 15 = 0', a:1,b:2,c:-15,displayNumber:'3'},
+ {equation:'5x² - 6x + 1 = 0', a:5,b:-6,c:1,displayNumber:'5'},
+ {equation:'x² - 7x + 12 = 0', a:1,b:-7,c:12,displayNumber:'4'},
+ {equation:'x² + 4x - 5 = 0', a:1,b:4,c:-5,displayNumber:'1'},
+ {equation:'3x² + 7x + 2 = 0', a:3,b:7,c:2,displayNumber:'-2'},
+ {equation:'x² - 2x - 8 = 0', a:1,b:-2,c:-8,displayNumber:'4'},
+ {equation:'2x² + 5x + 2 = 0', a:2,b:5,c:2,displayNumber:'-0,5'}
 ];
 
 function roots(card) {
@@ -141,8 +141,8 @@ io.on('connection', socket => {
     } else {
       player.penalties++;
       player.penaltyUntil=Date.now()+PENALTY_MS;
-      socket.emit('penalty',{message:'ШТРАФ!',description:'Неверный ответ. Вы не можете нажимать карты 40 секунд.',seconds:40});
       broadcast(room,`${player.name} получил(а) штраф −40 секунд!`);
+      socket.emit('penalty',{message:'ШТРАФ!',description:'Неверный ответ. Вы не можете нажимать карты 40 секунд.',seconds:40});
     }
   });
   socket.on('disconnect', () => {
