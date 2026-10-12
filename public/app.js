@@ -6,6 +6,13 @@ let isHost = false;
 
 // Защита от повторного клика по карте
 let isCardClickLocked = false;
+let cardLockTimer = null;
+
+function formatRoot(value) {
+    if (!Number.isFinite(Number(value))) return String(value ?? '');
+    const rounded = Math.abs(Number(value)) < 0.0000001 ? 0 : Number(Number(value).toFixed(4));
+    return String(rounded).replace('.', ',');
+}
 
 
 // ======================================================
@@ -303,174 +310,474 @@ function hostStartGame() {
 }
 
 
+// ======================================================
+// ИГРА НАЧАЛАСЬ
+// ======================================================
 
-let penaltyUntil = 0;
-let penaltyTimer = null;
+socket.on(
+    'gameStarted',
+    ({ players, tableCard, firstCard }) => {
 
-socket.on('gameStarted', ({ players, tableCard }) => {
-    isCardClickLocked = false;
-    syncPenaltyFromPlayers(players);
-    startGameInterface(players, tableCard);
-});
+        // После начала игры снова разрешаем клик
+        isCardClickLocked = false;
+        if (cardLockTimer) { clearTimeout(cardLockTimer); cardLockTimer = null; }
 
-socket.on('updateGame', ({ players, tableCard, lastMoveMessage }) => {
-    // Состояние штрафа берём с сервера: это не даёт клиенту зависнуть
-    // после окончания штрафного времени или потерять актуальное состояние.
-    syncPenaltyFromPlayers(players);
-    isCardClickLocked = false;
-    startGameInterface(players, tableCard);
-    if (lastMoveMessage) showToast(lastMoveMessage);
-});
+        startGameInterface(
+            players,
+            tableCard,
+            firstCard
+        );
 
-socket.on('penalty', ({ message, description, seconds = 40 }) => {
-    isCardClickLocked = false;
-    penaltyUntil = Date.now() + seconds * 1000;
-    showToast(`${message || 'ШТРАФ!'} ${description || ''} — ${seconds} сек.`);
-    updatePenaltyCountdown();
-    if (penaltyTimer) clearInterval(penaltyTimer);
-    penaltyTimer = setInterval(() => {
-        if (Date.now() >= penaltyUntil) {
-            clearInterval(penaltyTimer);
-            penaltyTimer = null;
-            penaltyUntil = 0;
-            isCardClickLocked = false;
-            updatePenaltyCountdown();
-            showToast(currentLang === 'kk' ? 'Айып уақыты аяқталды!' : 'Штрафное время закончилось!');
-        } else updatePenaltyCountdown();
-    }, 250);
-});
+    }
+);
 
-socket.on('gameOver', ({ winner, ranking }) => {
+
+// ======================================================
+// ОБНОВЛЕНИЕ ИГРЫ
+// ======================================================
+
+socket.on(
+    'updateGame',
+    ({
+        players,
+        tableCard,
+        lastMoveMessage,
+        firstCard
+    }) => {
+
+        // Обновление игры не должно снимать персональную блокировку штрафа.
+        if (!cardLockTimer) isCardClickLocked = false;
+
+        startGameInterface(
+            players,
+            tableCard,
+            firstCard
+        );
+
+        if (lastMoveMessage) {
+
+            console.log(
+                lastMoveMessage
+            );
+
+        }
+
+    }
+);
+
+
+// ======================================================
+// ШТРАФ
+// ======================================================
+
+socket.on('penalty', (data) => {
     isCardClickLocked = true;
-    showRatingScreen(winner, ranking);
+    if (cardLockTimer) clearTimeout(cardLockTimer);
+    const duration = Number(data.duration) || 0;
+    if (duration > 0) {
+        cardLockTimer = setTimeout(() => {
+            isCardClickLocked = false;
+            cardLockTimer = null;
+        }, duration);
+    } else {
+        isCardClickLocked = false;
+    }
+    showPenaltyScreen(data.message, data.description);
 });
 
-function syncPenaltyFromPlayers(players) {
-    const me = Array.isArray(players) ? players.find(p => p.id === socket.id) : null;
-    const remaining = Math.max(0, Number(me?.penaltyUntil) || 0);
 
-    if (remaining > 0) {
-        penaltyUntil = Date.now() + remaining;
-        if (!penaltyTimer) {
-            penaltyTimer = setInterval(() => {
-                if (Date.now() >= penaltyUntil) {
-                    clearInterval(penaltyTimer);
-                    penaltyTimer = null;
-                    penaltyUntil = 0;
-                    isCardClickLocked = false;
-                    updatePenaltyCountdown();
-                    showToast(currentLang === 'kk' ? 'Айып уақыты аяқталды!' : 'Штрафное время закончилось!');
-                } else {
-                    updatePenaltyCountdown();
-                }
-            }, 250);
-        }
-    } else {
-        penaltyUntil = 0;
-        if (penaltyTimer) {
-            clearInterval(penaltyTimer);
-            penaltyTimer = null;
-        }
-        updatePenaltyCountdown();
-    }
-}
+// ======================================================
+// ОТОБРАЖЕНИЕ ИГРЫ
+// ======================================================
 
-function updatePenaltyCountdown() {
-    const left = Math.max(0, Math.ceil((penaltyUntil - Date.now()) / 1000));
-    const hand = document.getElementById('myHand');
-    if (hand) hand.dataset.penaltyLeft = String(left);
-}
+function startGameInterface(
+    players,
+    tableCard,
+    firstCard = false
+) {
 
-function showToast(message) {
-    let toast = document.getElementById('gameToast');
-    if (!toast) {
-        toast = document.createElement('div');
-        toast.id = 'gameToast';
-        toast.style.cssText = 'position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:9999;background:#fff;color:#2c003e;padding:12px 20px;border-radius:12px;font-weight:700;box-shadow:0 4px 18px #0005;max-width:90vw;text-align:center';
-        document.body.appendChild(toast);
-    }
-    toast.textContent = message;
-    toast.style.display = 'block';
-    clearTimeout(toast._hideTimer);
-    toast._hideTimer = setTimeout(() => { toast.style.display = 'none'; }, 2800);
-}
+    document
+        .getElementById('lobby')
+        .classList.add('hidden');
 
-function startGameInterface(players, tableCard) {
-    document.getElementById('lobby')?.classList.add('hidden');
-    document.getElementById('waitingRoom')?.classList.add('hidden');
-    document.getElementById('gameArea')?.classList.remove('hidden');
+    document
+        .getElementById('waitingRoom')
+        .classList.add('hidden');
 
-    const center = document.getElementById('centerCard');
-    if (center) {
-        center.innerHTML = tableCard ? `
-            <div class="card center-card">
-                <div class="corner-top-left">${escapeHtml(tableCard.displayNumber)}</div>
-                <div class="corner-top-right">${escapeHtml(tableCard.displayNumber)}</div>
-                <div class="equation-text">${escapeHtml(tableCard.equation)}</div>
-                <div class="corner-bottom-left">${escapeHtml(tableCard.displayNumber)}</div>
-                <div class="corner-bottom-right">${escapeHtml(tableCard.displayNumber)}</div>
-            </div>` : `
+    document
+        .getElementById('gameArea')
+        .classList.remove('hidden');
+
+
+    // ==================================================
+    // ЦЕНТРАЛЬНАЯ КАРТА
+    // ==================================================
+
+    const centerCardEl =
+        document.getElementById('centerCard');
+
+
+    if (!tableCard) {
+
+        centerCardEl.innerHTML = `
+
             <div class="card center-card first-card-placeholder">
-                <div class="equation-text">${currentLang === 'kk' ? 'Бірінші картаны таңдаңыз!' : 'Выберите первую карту!'}</div>
-            </div>`;
+
+                <div class="equation-text">
+
+                    ${
+                        currentLang === 'kk'
+                        ? 'Бірінші картаны таңдаңыз!'
+                        : 'Выберите первую карту!'
+                    }
+
+                </div>
+
+            </div>
+
+        `;
+
+    } else {
+
+        centerCardEl.innerHTML = `
+
+            <div class="card center-card">
+
+                <div class="corner-top-left">x₁ = ${formatRoot(tableCard.answers[0])}</div>
+                <div class="corner-top-right">x₂ = ${formatRoot(tableCard.answers[1])}</div>
+                <div class="equation-text">${tableCard.equation}</div>
+
+            </div>
+
+        `;
+
     }
 
-    const status = document.getElementById('playersStatusContainer');
-    if (status) status.innerHTML = players.map(p =>
-        `<span class="player-badge"><b>${escapeHtml(p.name)}</b>: ${p.cards.length} карт(а) · ${currentLang === 'kk' ? 'Ұпай' : 'Очки'}: ${p.score || 0}</span>`
-    ).join(' | ');
 
-    const me = players.find(p => p.id === socket.id);
-    const hand = document.getElementById('myHand');
-    if (!hand) return;
-    hand.innerHTML = '';
-    if (!me || !Array.isArray(me.cards)) return;
+    // ==================================================
+    // СТАТУС ИГРОКОВ
+    // ==================================================
 
-    me.cards.forEach(card => {
-        const el = document.createElement('div');
-        el.className = 'tabata-card card';
-        el.innerHTML = `
-            <div class="corner-top-left">${escapeHtml(card.displayNumber)}</div>
-            <div class="corner-top-right">${escapeHtml(card.displayNumber)}</div>
-            <div class="equation-text">${escapeHtml(card.equation)}</div>
-            <div class="corner-bottom-left">${escapeHtml(card.displayNumber)}</div>
-            <div class="corner-bottom-right">${escapeHtml(card.displayNumber)}</div>`;
-        el.addEventListener('click', e => {
-            e.preventDefault();
-            if (isCardClickLocked || Date.now() < penaltyUntil || !currentRoomId) return;
-            isCardClickLocked = true;
-            socket.emit('playCard', { roomId: currentRoomId, cardId: card.id });
-            // Re-enable if the server rejects a duplicate/invalid request.
-            setTimeout(() => { isCardClickLocked = false; }, 700);
-        });
-        hand.appendChild(el);
-    });
-}
+    const statusContainer =
+        document.getElementById(
+            'playersStatusContainer'
+        );
 
-function escapeHtml(value) {
-    return String(value ?? '').replace(/[&<>"']/g, ch => ({
-        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
-    }[ch]));
-}
 
-function showRatingScreen(winner, ranking) {
-    const screen = document.getElementById('ratingScreen');
-    const winnerEl = document.getElementById('ratingWinner');
-    const listEl = document.getElementById('ratingList');
-    if (!screen || !winnerEl || !listEl) {
-        showModal(`${currentLang === 'kk' ? 'Жеңімпаз' : 'Победитель'}: ${winner}`);
+    statusContainer.innerHTML =
+        players
+            .map(p => `
+
+                <span class="player-badge">
+
+                    <b>${p.name}</b>:
+                    ${p.cards.length} карт(а) · ${currentLang === 'kk' ? 'Ұпай' : 'Очки'}: ${p.score ?? 0}
+
+                </span>
+
+            `)
+            .join(' | ');
+
+
+    // ==================================================
+    // НАША РУКА
+    // ==================================================
+
+    const me =
+        players.find(
+            p => p.id === socket.id
+        );
+
+
+    const handEl =
+        document.getElementById(
+            'myHand'
+        );
+
+
+    handEl.innerHTML = '';
+
+
+    if (!me || !me.cards) {
         return;
     }
-    winnerEl.textContent = `🏆 ${currentLang === 'kk' ? 'Жеңімпаз' : 'Победитель'}: ${winner}`;
-    listEl.innerHTML = ranking.map(p => `
-        <div class="rating-row">
-            <div class="rating-place">${p.place}</div>
-            <div class="rating-name">${escapeHtml(p.name)}</div>
-            <div class="rating-info">${currentLang === 'kk' ? 'Ұпай' : 'Очки'}: <b>${p.score}</b> ·
-            ${currentLang === 'kk' ? 'Қалған карталар' : 'Карт осталось'}: <b>${p.cardsLeft}</b> ·
-            ${currentLang === 'kk' ? 'Штраф' : 'Штрафов'}: <b>${p.penalties}</b></div>
-        </div>`).join('');
-    screen.classList.remove('hidden');
+
+
+    me.cards.forEach(card => {
+
+        const cardDiv =
+            document.createElement('div');
+
+
+        cardDiv.className =
+            'tabata-card card';
+
+
+        // ==================================================
+        // УГЛЫ = displayNumber
+        // answers НЕ показываем
+        // ==================================================
+
+        cardDiv.innerHTML = `
+
+            <div class="corner-top-left">x₁ = ${formatRoot(card.answers[0])}</div>
+            <div class="corner-top-right">x₂ = ${formatRoot(card.answers[1])}</div>
+            <div class="equation-text">${card.equation}</div>
+
+        `;
+
+
+        // ==================================================
+        // КЛИК ПО КАРТЕ
+        // ==================================================
+
+        cardDiv.addEventListener(
+            'click',
+            function (e) {
+
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Если предыдущий клик ещё обрабатывается —
+                // ничего больше не отправляем
+                if (isCardClickLocked) {
+                    return;
+                }
+
+                // Без комнаты играть нельзя
+                if (!currentRoomId) {
+                    console.log(
+                        'Ошибка: currentRoomId отсутствует'
+                    );
+                    return;
+                }
+
+                // Блокируем повторное нажатие
+                isCardClickLocked = true;
+
+                console.log(
+                    'Карта отправлена:',
+                    card.id,
+                    'Комната:',
+                    currentRoomId
+                );
+
+                socket.emit(
+                    'playCard',
+                    {
+                        roomId: currentRoomId,
+                        cardId: card.id
+                    }
+                );
+
+            }
+        );
+
+
+        // ==================================================
+        // ВАЖНО:
+        //
+        // touchend ЗДЕСЬ БОЛЬШЕ НЕТ.
+        //
+        // Иначе на некоторых устройствах одно касание
+        // вызывает touchend + click и карта отправляется
+        // два раза.
+        // ==================================================
+
+
+        handEl.appendChild(cardDiv);
+
+    });
+
 }
 
-function restartGame() { location.reload(); }
+
+// ======================================================
+// ЭКРАН ШТРАФА
+// ======================================================
+
+function showPenaltyScreen(
+    title,
+    description
+) {
+
+    const screen =
+        document.getElementById(
+            'penaltyScreen'
+        );
+
+
+    if (!screen) {
+        return;
+    }
+
+
+    document
+        .getElementById('penaltyTitle')
+        .textContent = title;
+
+
+    document
+        .getElementById('penaltyDescription')
+        .textContent = description;
+
+
+    screen.classList.remove(
+        'hidden'
+    );
+
+
+    // Через 2 секунды закрываем
+    setTimeout(() => {
+
+        screen.classList.add(
+            'hidden'
+        );
+
+    }, 2000);
+
+}
+
+
+// ======================================================
+// ЗАКРЫТИЕ ШТРАФА
+// ======================================================
+
+function closePenaltyScreen() {
+
+    const screen =
+        document.getElementById(
+            'penaltyScreen'
+        );
+
+    if (screen) {
+
+        screen.classList.add(
+            'hidden'
+        );
+
+    }
+
+}
+
+
+// ======================================================
+// КОНЕЦ ИГРЫ / РЕЙТИНГ
+// ======================================================
+
+socket.on(
+    'gameOver',
+    ({ winner, ranking }) => {
+
+        isCardClickLocked = true;
+        if (cardLockTimer) { clearTimeout(cardLockTimer); cardLockTimer = null; }
+
+        showRatingScreen(
+            winner,
+            ranking
+        );
+
+    }
+);
+
+
+// ======================================================
+// РЕЙТИНГ
+// ======================================================
+
+function showRatingScreen(
+    winner,
+    ranking
+) {
+
+    const screen =
+        document.getElementById(
+            'ratingScreen'
+        );
+
+
+    const winnerEl =
+        document.getElementById(
+            'ratingWinner'
+        );
+
+
+    const listEl =
+        document.getElementById(
+            'ratingList'
+        );
+
+
+    winnerEl.textContent =
+        `🏆 ${
+            currentLang === 'kk'
+                ? 'Жеңімпаз'
+                : 'Победитель'
+        }: ${winner}`;
+
+
+    listEl.innerHTML =
+        ranking
+            .map(player => `
+
+                <div class="rating-row">
+
+                    <div class="rating-place">
+                        ${player.place}
+                    </div>
+
+                    <div class="rating-name">
+                        ${player.name}
+                    </div>
+
+                    <div class="rating-info">
+
+                        ${
+                            currentLang === 'kk'
+                            ? 'Ұпай'
+                            : 'Очки'
+                        }:
+                        <b>${player.score}</b>
+
+                        &nbsp; | &nbsp;
+
+                        ${
+                            currentLang === 'kk'
+                            ? 'Қалған карталар'
+                            : 'Карт осталось'
+                        }:
+                        <b>${player.cardsLeft}</b>
+
+                        &nbsp; | &nbsp;
+
+                        ${
+                            currentLang === 'kk'
+                            ? 'Штраф'
+                            : 'Штрафов'
+                        }:
+                        <b>${player.penalties}</b>
+
+                    </div>
+
+                </div>
+
+            `)
+            .join('');
+
+
+    screen.classList.remove(
+        'hidden'
+    );
+
+}
+
+
+// ======================================================
+// ПЕРЕЗАПУСК
+// ======================================================
+
+function restartGame() {
+
+    location.reload();
+
+}
