@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="kk">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ТАБАТА — Квадрат теңдеулер ойыны</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="lang-switch">
+    <button onclick="setLanguage('kk')" id="btn-kk" class="active">ҚАЗ</button>
+    <button onclick="setLanguage('ru')" id="btn-ru">РУС</button>
+  </div>
+
+  <div id="customModal" class="modal hidden">
+    <div class="modal-content">
+      <p id="modalMessage">Уведомление</p>
+      <button onclick="closeModal()">OK</button>
+    </div>
+  </div>
+
+  <div id="lobby" class="card-container">
+    <h1 id="title">ТАБАТА ОЙЫНЫ</h1>
+    <p id="subtitle">Карталардан бірінші болып құтыл!</p>
+
+    <input type="text" id="playerName" placeholder="Атыңызды енгізіңіз / Ваше имя" />
+
+    <div class="lobby-actions">
+      <div class="box">
+        <h3 data-key="createTitle">Жаңа бөлме құру</h3>
+        <select id="maxPlayers">
+          <option value="2">2 Ойыншы / Игрока</option>
+          <option value="3">3 Ойыншы / Игрока</option>
+          <option value="4" selected>4 Ойыншы / Игрока</option>
+          <option value="6">6 Ойыншы / Игроков</option>
+        </select>
+        <button onclick="createRoom()" data-key="btnCreate">Бөлме ашу</button>
+      </div>
+
+      <div class="box">
+        <h3 data-key="joinTitle">Бөлмеге қосылу</h3>
+        <input type="text" id="roomCodeInput" placeholder="Код (мысалы: AB12C)" />
+        <button onclick="joinRoom()" data-key="btnJoin">Қосылу</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="waitingRoom" class="card-container hidden">
+    <h2 data-key="waitingTitle">Ойыншылар күтілуде...</h2>
+    <p><span data-key="roomCodeLabel">Бөлме коды:</span> <b id="displayRoomCode"></b></p>
+    <ul id="playerList"></ul>
+    <button onclick="hostStartGame()" id="startBtn" class="primary-btn" data-key="btnStart" style="margin-top: 15px; display: none;">Ойынды бастау / Начать игру</button>
+  </div>
+
+  <div id="gameArea" class="hidden">
+    <div class="status-bar" id="gameStatus">Карталарыңызды тез тастаңыз!</div>
+
+    <!-- Список статусов других игроков (сколько карт осталось) -->
+    <div id="playersStatusContainer" class="players-status-bar"></div>
+
+    <div class="table-center">
+      <h3 data-key="centerTitle">Ортадағы карточка:</h3>
+      <div id="centerCard" class="tabata-card pink-card">
+        <div class="equation-oval" id="centerEqText"></div>
+      </div>
+    </div>
+
+    <div class="my-hand-section">
+      <h3 data-key="myHandTitle">Сіздің карталарыңыз:</h3>
+      <div id="myHand" class="grid-hand"></div>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+
+      <!-- ЭКРАН ШТРАФА -->
+    <div id="penaltyScreen" class="penalty-screen hidden">
+
+        <div class="penalty-box">
+
+            <div class="penalty-icon">
+                ⚠️
+            </div>
+
+            <h1 id="penaltyTitle">
+                ШТРАФ!
+            </h1>
+
+            <p id="penaltyDescription">
+                Неверная карта!
+            </p>
+
+        </div>
+
+    </div>
+
+
+    <!-- ЭКРАН РЕЙТИНГА -->
+    <div id="ratingScreen" class="rating-screen hidden">
+
+        <div class="rating-box">
+
+            <h1>
+                🏆 РЕЙТИНГ
+            </h1>
+
+            <h2 id="ratingWinner"></h2>
+
+            <div id="ratingList"></div>
+
+            <button onclick="restartGame()">
+                Играть снова / Қайта ойнау
+            </button>
+
+        </div>
+
+    </div>
+
+
+    <script src="app.js"></script>
+
+</body>
+</html>
