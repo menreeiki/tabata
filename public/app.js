@@ -443,8 +443,8 @@ function startGameInterface(
 
             <div class="card center-card">
 
-                <div class="corner-top-left">x₁ = ${formatRoot(tableCard.answers[0])}</div>
-                <div class="corner-top-right">x₂ = ${formatRoot(tableCard.answers[1])}</div>
+                <div class="corner-top-left" style="position:absolute;top:8px;left:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;">x₁ = ${formatRoot(tableCard.answers[0])}</div>
+                <div class="corner-top-right" style="position:absolute;top:8px;right:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;transform:none;">x₂ = ${formatRoot(tableCard.answers[1])}</div>
                 <div class="equation-text">${tableCard.equation}</div>
 
             </div>
@@ -520,8 +520,8 @@ function startGameInterface(
 
         cardDiv.innerHTML = `
 
-            <div class="corner-top-left">x₁ = ${formatRoot(card.answers[0])}</div>
-            <div class="corner-top-right">x₂ = ${formatRoot(card.answers[1])}</div>
+            <div class="corner-top-left" style="position:absolute;top:8px;left:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;">x₁ = ${formatRoot(card.answers[0])}</div>
+            <div class="corner-top-right" style="position:absolute;top:8px;right:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;transform:none;">x₂ = ${formatRoot(card.answers[1])}</div>
             <div class="equation-text">${card.equation}</div>
 
         `;
