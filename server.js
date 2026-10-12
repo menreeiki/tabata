@@ -111,10 +111,14 @@ io.on('connection', socket => {
     if (!room || !room.gameStarted) return;
     const player=room.players.find(p=>p.id===socket.id);
     if (!player) return;
-    if (Date.now() < player.penaltyUntil) {
-      socket.emit('penalty',{message:'ШТРАФ!',description:'Подождите окончания штрафа.',seconds:Math.ceil((player.penaltyUntil-Date.now())/1000)});
+    const now = Date.now();
+    if (now < player.penaltyUntil) {
+      socket.emit('penalty',{message:'ШТРАФ!',description:'Подождите окончания штрафа.',seconds:Math.ceil((player.penaltyUntil-now)/1000)});
       return;
     }
+    // По окончании штрафа сбрасываем состояние, чтобы следующие ходы
+    // не зависели от старой временной метки.
+    player.penaltyUntil = 0;
     const idx=player.cards.findIndex(c=>String(c.id)===String(cardId));
     if (idx<0) return;
     const card=player.cards[idx];

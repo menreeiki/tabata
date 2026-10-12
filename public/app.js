@@ -309,10 +309,14 @@ let penaltyTimer = null;
 
 socket.on('gameStarted', ({ players, tableCard }) => {
     isCardClickLocked = false;
+    syncPenaltyFromPlayers(players);
     startGameInterface(players, tableCard);
 });
 
 socket.on('updateGame', ({ players, tableCard, lastMoveMessage }) => {
+    // Состояние штрафа берём с сервера: это не даёт клиенту зависнуть
+    // после окончания штрафного времени или потерять актуальное состояние.
+    syncPenaltyFromPlayers(players);
     isCardClickLocked = false;
     startGameInterface(players, tableCard);
     if (lastMoveMessage) showToast(lastMoveMessage);
@@ -328,6 +332,9 @@ socket.on('penalty', ({ message, description, seconds = 40 }) => {
         if (Date.now() >= penaltyUntil) {
             clearInterval(penaltyTimer);
             penaltyTimer = null;
+            penaltyUntil = 0;
+            isCardClickLocked = false;
+            updatePenaltyCountdown();
             showToast(currentLang === 'kk' ? 'Айып уақыты аяқталды!' : 'Штрафное время закончилось!');
         } else updatePenaltyCountdown();
     }, 250);
@@ -337,6 +344,36 @@ socket.on('gameOver', ({ winner, ranking }) => {
     isCardClickLocked = true;
     showRatingScreen(winner, ranking);
 });
+
+function syncPenaltyFromPlayers(players) {
+    const me = Array.isArray(players) ? players.find(p => p.id === socket.id) : null;
+    const remaining = Math.max(0, Number(me?.penaltyUntil) || 0);
+
+    if (remaining > 0) {
+        penaltyUntil = Date.now() + remaining;
+        if (!penaltyTimer) {
+            penaltyTimer = setInterval(() => {
+                if (Date.now() >= penaltyUntil) {
+                    clearInterval(penaltyTimer);
+                    penaltyTimer = null;
+                    penaltyUntil = 0;
+                    isCardClickLocked = false;
+                    updatePenaltyCountdown();
+                    showToast(currentLang === 'kk' ? 'Айып уақыты аяқталды!' : 'Штрафное время закончилось!');
+                } else {
+                    updatePenaltyCountdown();
+                }
+            }, 250);
+        }
+    } else {
+        penaltyUntil = 0;
+        if (penaltyTimer) {
+            clearInterval(penaltyTimer);
+            penaltyTimer = null;
+        }
+        updatePenaltyCountdown();
+    }
+}
 
 function updatePenaltyCountdown() {
     const left = Math.max(0, Math.ceil((penaltyUntil - Date.now()) / 1000));
