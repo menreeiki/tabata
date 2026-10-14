@@ -211,20 +211,15 @@ io.on('connection', socket => {
         }
 
         const cardIndex = player.cards.findIndex(card => String(card.id) === String(cardId));
-        if (cardIndex < 0 || !room.remainingCardIds.includes(Number(cardId))) return;
+        if (cardIndex < 0) {
+            socket.emit('playRejected', { message: 'Этой карты нет в вашей руке.' });
+            return;
+        }
         const cardPlayed = player.cards[cardIndex];
 
-        // Первый ход — любая карта. Если среди оставшихся карт уже нет
-        // ни одной подходящей, разрешаем любой ход, чтобы игра не зависла.
-        const hasAnyMatch = room.tableCard && room.players.some(participant =>
-            participant.cards.some(card =>
-                room.remainingCardIds.includes(card.id) &&
-                cardMatchesTableCard(card, room.tableCard)
-            )
-        );
-        const isCorrect = !room.tableCard ||
-            cardMatchesTableCard(cardPlayed, room.tableCard) ||
-            !hasAnyMatch;
+        // Первый ход — любая карта. Далее нужно выбрать карту,
+        // чей корень совпадает с одним из корней центрального уравнения.
+        const isCorrect = !room.tableCard || cardMatchesTableCard(cardPlayed, room.tableCard);
         if (!isCorrect) {
             player.penalties += 1;
             player.score = Math.max(0, player.score - 1);
@@ -238,15 +233,16 @@ io.on('connection', socket => {
             return;
         }
 
-        // Карта уходит из общего набора и из рук ВСЕХ игроков.
-        room.remainingCardIds = room.remainingCardIds.filter(id => id !== Number(cardId));
-        for (const participant of room.players) {
-            participant.cards = participant.cards.filter(card => card.id !== Number(cardId));
-        }
+        // Только у нажавшего игрока удаляется сыгранная карта.
+        // У остальных руки остаются прежними, меняется лишь общий центр.
+        player.cards.splice(cardIndex, 1);
         room.tableCard = cardPlayed;
         player.score += 1;
 
-        if (room.remainingCardIds.length === 0) {
+        // Игра завершается, когда хотя бы у одного игрока закончились карты.
+        // Победитель определяется рейтингом по очкам, а не фактом завершения.
+        if (player.cards.length === 0) {
+            broadcastGame(room, `${player.name} заработал(а) 1 очко и остался без карт!`);
             finishGame(room);
             return;
         }

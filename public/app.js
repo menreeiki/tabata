@@ -10,7 +10,7 @@ let cardLockTimer = null;
 
 function formatRoot(value) {
     if (!Number.isFinite(Number(value))) return String(value ?? '');
-    const rounded = Math.abs(Number(value)) < 0.0000001 ? 0 : Number(Number(value).toFixed(2));
+    const rounded = Math.abs(Number(value)) < 0.0000001 ? 0 : Number(Number(value).toFixed(4));
     return String(rounded).replace('.', ',');
 }
 
@@ -366,6 +366,13 @@ socket.on(
 );
 
 
+socket.on('playRejected', (data) => {
+    isCardClickLocked = false;
+    if (cardLockTimer) { clearTimeout(cardLockTimer); cardLockTimer = null; }
+    if (data?.message) console.warn(data.message);
+});
+
+
 // ======================================================
 // ШТРАФ
 // ======================================================
@@ -378,6 +385,7 @@ socket.on('penalty', (data) => {
         cardLockTimer = setTimeout(() => {
             isCardClickLocked = false;
             cardLockTimer = null;
+            showPenaltyScreen('Штраф окончен', 'Время штрафа прошло. Теперь можно снова выбирать карты.');
         }, duration);
     } else {
         isCardClickLocked = false;
@@ -443,8 +451,8 @@ function startGameInterface(
 
             <div class="card center-card">
 
-                <div class="corner-top-left" style="position:absolute;top:8px;left:10px;z-index:5;color:#fff;font-size:clamp(12px, 1.5vw, 18px);font-weight:800;line-height:1.2;pointer-events:none;max-width:40%;overflow-wrap:anywhere;">${formatRoot(tableCard.answers[0])}</div>
-                <div class="corner-top-right" style="position:absolute;top:8px;right:10px;z-index:5;color:#fff;font-size:clamp(12px, 1.5vw, 18px);font-weight:800;line-height:1.2;pointer-events:none;transform:none;max-width:40%;text-align:right;overflow-wrap:anywhere;">${formatRoot(tableCard.answers[1])}</div>
+                <div class="corner-top-left" style="position:absolute;top:8px;left:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;">x₁ = ${formatRoot(tableCard.answers[0])}</div>
+                <div class="corner-top-right" style="position:absolute;top:8px;right:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;transform:none;">x₂ = ${formatRoot(tableCard.answers[1])}</div>
                 <div class="equation-text">${tableCard.equation}</div>
 
             </div>
@@ -511,9 +519,6 @@ function startGameInterface(
 
         cardDiv.className =
             'tabata-card card';
-        cardDiv.style.cursor = 'pointer';
-        cardDiv.style.position = 'relative';
-        cardDiv.style.pointerEvents = 'auto';
 
 
         // ==================================================
@@ -523,8 +528,8 @@ function startGameInterface(
 
         cardDiv.innerHTML = `
 
-            <div class="corner-top-left" style="position:absolute;top:8px;left:10px;z-index:5;color:#fff;font-size:clamp(12px, 1.5vw, 18px);font-weight:800;line-height:1.2;pointer-events:none;max-width:40%;overflow-wrap:anywhere;">${formatRoot(card.answers[0])}</div>
-            <div class="corner-top-right" style="position:absolute;top:8px;right:10px;z-index:5;color:#fff;font-size:clamp(12px, 1.5vw, 18px);font-weight:800;line-height:1.2;pointer-events:none;transform:none;max-width:40%;text-align:right;overflow-wrap:anywhere;">${formatRoot(card.answers[1])}</div>
+            <div class="corner-top-left" style="position:absolute;top:8px;left:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;">x₁ = ${formatRoot(card.answers[0])}</div>
+            <div class="corner-top-right" style="position:absolute;top:8px;right:8px;z-index:5;color:#fff;font-size:13px;font-weight:800;line-height:1.2;pointer-events:none;transform:none;">x₂ = ${formatRoot(card.answers[1])}</div>
             <div class="equation-text">${card.equation}</div>
 
         `;
